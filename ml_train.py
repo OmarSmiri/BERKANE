@@ -224,6 +224,88 @@ def main(histories=None):
         lines.append("Most useful inputs: " + ", ".join(report["top_features"][:3]) + ".")
     push("\n".join(lines), f"ML retrain: {status}")
 
+    strategy = strategy_report(histories)
+    report["strategy"] = strategy
+    REPORT_FILE.write_text(json.dumps(report, indent=1))
+    if strategy:
+        push(strategy_text(strategy), "Strategy test: buy on BUY, sell on SELL")
+
+
+# ---------------------------------------------------------------- realistic strategy test
+def trade_coin(h, fee, stop=None):
+    """Spot trading as you'd do it from the alerts: buy at a BUY alert, sell at the next
+    SELL alert (or at the stop-loss, if set). One position at a time, long only."""
+    ind = Indicators(h["c"])
+    c, lows = h["c"], h["l"]
+    trades, entry_i, prev = [], None, None
+    for i in range(100, len(c)):
+        s = ind.signal_at(i)
+        switched = prev is not None and s != prev
+        prev = s
+        if entry_i is not None:
+            stop_px = c[entry_i] * (1 - stop) if stop else None
+            if stop_px and lows[i] <= stop_px:
+                trades.append((stop_px / c[entry_i] - 1 - fee, i - entry_i))
+                entry_i = None
+            elif switched and s == "SELL":
+                trades.append((c[i] / c[entry_i] - 1 - fee, i - entry_i))
+                entry_i = None
+        elif switched and s == "BUY":
+            entry_i = i
+    if entry_i is not None:  # still holding at the end: value it at the last price
+        trades.append((c[-1] / c[entry_i] - 1 - fee, len(c) - 1 - entry_i))
+    return trades
+
+
+def summarize_trades(histories, fee, stop=None):
+    all_trades, growth, hold = [], [], []
+    for h in histories.values():
+        t = trade_coin(h, fee, stop)
+        all_trades += [r for r, _ in t]
+        hold += [n for _, n in t]
+        g = 1.0
+        for r, _ in t:
+            g *= 1 + r
+        growth.append(g - 1)
+    if not all_trades:
+        return None
+    return {"trades": len(all_trades), "win": float(np.mean([r > 0 for r in all_trades])),
+            "avg": float(np.mean(all_trades)), "total": float(np.mean(growth)),
+            "hold_days": float(np.mean(hold)) * INTERVAL_MIN[INTERVAL] / 1440}
+
+
+def strategy_report(histories):
+    if not histories:
+        return None
+    stop = float(env("STOP_LOSS_PCT", "6")) / 100
+    hodl = [h["c"][-1] / h["c"][100] - 1 - FEE for h in histories.values()]
+    first = min(h["t"][100] for h in histories.values())
+    out = {"since": datetime.fromtimestamp(first, timezone.utc).strftime("%b %Y"),
+           "stop": stop, "buy_hold": float(np.mean(hodl)), "variants": {}}
+    for label, fee, s in [("market orders (0.8% fees)", FEE, None),
+                          ("limit orders (0.5% fees)", 0.005, None),
+                          (f"limit orders + {stop:.0%} stop-loss", 0.005, stop)]:
+        r = summarize_trades(histories, fee, s)
+        if r:
+            out["variants"][label] = r
+    return out
+
+
+def strategy_text(s):
+    lines = [f"Since {s['since']}, {INTERVAL} candles, average per coin:"]
+    for label, r in s["variants"].items():
+        lines.append(f"• {label}: {r['trades']} trades, {r['win']:.0%} winners, "
+                     f"avg {r['avg']:+.1%} per trade, held {r['hold_days']:.1f} days → total {r['total']:+.0%}")
+    lines.append(f"• Just buying and holding: total {s['buy_hold']:+.0%}")
+    best = max(r["total"] for r in s["variants"].values())
+    if best > s["buy_hold"] and best > 0:
+        lines.append("The alerts beat buy-and-hold here. Watch them live for a few weeks before trusting this.")
+    elif best > 0:
+        lines.append("The alerts made money, but less than simply buying and holding.")
+    else:
+        lines.append("Trading the alerts lost money over this period.")
+    return "\n".join(lines)
+
 
 if __name__ == "__main__":
     main()
