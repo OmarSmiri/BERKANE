@@ -24,7 +24,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install
-        run: pip install lightgbm numpy pandas yfinance
+        run: pip install lightgbm scikit-learn numpy pandas yfinance
 
       - name: Train and test
         env:
