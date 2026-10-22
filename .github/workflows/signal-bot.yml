@@ -1,0 +1,59 @@
+name: Signal bot
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: signal-bot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write   # lets the bot start the "AI opinion" workflow
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ML library (the bot still runs if this fails)
+        continue-on-error: true
+        run: pip install lightgbm numpy
+
+      - name: Load saved signals
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: state-${{ github.run_id }}
+          restore-keys: state-
+
+      - name: Check Kraken every minute
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          COINS: ${{ vars.COINS }}
+          INTERVAL: ${{ vars.INTERVAL }}
+          ALERT_HOURS: ${{ vars.ALERT_HOURS }}
+          ALWAYS_ON: ${{ vars.ALWAYS_ON }}
+          FOMC_DATES: ${{ vars.FOMC_DATES }}
+          AI_ENABLED: ${{ vars.AI_ENABLED }}
+          AI_MAX_PER_DAY: ${{ vars.AI_MAX_PER_DAY }}
+          ML_ENABLED: ${{ vars.ML_ENABLED }}
+          ML_HIDE_WEAK: ${{ vars.ML_HIDE_WEAK }}
+          AI_KEY_SET: ${{ secrets.ANTHROPIC_API_KEY != '' || secrets.OPENAI_API_KEY != '' || secrets.GOOGLE_API_KEY != '' || secrets.DEEPSEEK_API_KEY != '' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python signal_bot.py
+
+      - name: Save signals for the next run
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: state-${{ github.run_id }}
