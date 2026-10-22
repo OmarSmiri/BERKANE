@@ -1,0 +1,93 @@
+{
+ "trained": "2026-10-22T12:13:03+00:00",
+ "interval": "4h",
+ "hold_hours": 72.0,
+ "fee": 0.008,
+ "coins": [
+  "ADA",
+  "AVAX",
+  "BTC",
+  "DOGE",
+  "DOT",
+  "ETH",
+  "LINK",
+  "LTC",
+  "SOL",
+  "XRP"
+ ],
+ "signals": 2980,
+ "features": [
+  "side",
+  "rsi",
+  "macd_hist",
+  "ema_gap",
+  "ema20_slope",
+  "ret_1",
+  "ret_4",
+  "ret_16",
+  "ret_96",
+  "volatility",
+  "range",
+  "volume_ratio",
+  "hour",
+  "weekday"
+ ],
+ "active": false,
+ "reason": "the signals it likes still lose money after fees (-0.98% vs -0.97% per trade for the plain rules)",
+ "folds": [
+  {
+   "from": "2025-03-30",
+   "to": "2025-08-25",
+   "signals": 596,
+   "picked": 270,
+   "rules_avg": -0.0067203450103078466,
+   "rules_win": 0.4395973154362416,
+   "ml_avg": -0.008612381129099527,
+   "ml_win": 0.4,
+   "ml_better": false
+  },
+  {
+   "from": "2025-08-25",
+   "to": "2026-01-12",
+   "signals": 596,
+   "picked": 239,
+   "rules_avg": -0.012144994292065487,
+   "rules_win": 0.4278523489932886,
+   "ml_avg": -0.008649368354434004,
+   "ml_win": 0.4225941422594142,
+   "ml_better": true
+  },
+  {
+   "from": "2026-01-12",
+   "to": "2026-05-25",
+   "signals": 596,
+   "picked": 268,
+   "rules_avg": -0.011752484062759836,
+   "rules_win": 0.3540268456375839,
+   "ml_avg": -0.012822187101699486,
+   "ml_win": 0.3619402985074627,
+   "ml_better": false
+  },
+  {
+   "from": "2026-05-26",
+   "to": "2026-10-18",
+   "signals": 596,
+   "picked": 283,
+   "rules_avg": -0.007995433687573971,
+   "rules_win": 0.37583892617449666,
+   "ml_avg": -0.009132689332258075,
+   "ml_win": 0.3462897526501767,
+   "ml_better": false
+  }
+ ],
+ "cutoff": 0.40268456375838924,
+ "base_win": 0.40268456375838924,
+ "base_avg": -0.008211922724987109,
+ "top_features": [
+  "ret_4",
+  "ret_96",
+  "ema20_slope",
+  "ema_gap",
+  "range"
+ ]
+}
