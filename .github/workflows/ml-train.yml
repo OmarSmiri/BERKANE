@@ -1,0 +1,48 @@
+name: ML retrain
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * 6"   # every Saturday morning
+
+concurrency:
+  group: ml-train
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # saves data/ml_model.txt and data/ml_report.json
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install lightgbm numpy pandas yfinance
+
+      - name: Train and test
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          INTERVAL: ${{ vars.INTERVAL }}
+          COINS: ${{ vars.COINS }}
+          ML_TRAIN_COINS: ${{ vars.ML_TRAIN_COINS }}
+          ML_HOLD_HOURS: ${{ vars.ML_HOLD_HOURS }}
+          ML_FEE_PCT: ${{ vars.ML_FEE_PCT }}
+          YAHOO_TICKERS: ${{ vars.YAHOO_TICKERS }}
+        run: python ml_train.py
+
+      - name: Save model
+        run: |
+          git config user.name "signal-bot"
+          git config user.email "signal-bot@users.noreply.github.com"
+          git add data
+          if ! git diff --cached --quiet; then
+            git commit -m "ML retrain"
+            for i in 1 2 3; do git pull --rebase -q && git push -q && break; sleep 5; done
+          fi
